@@ -28,11 +28,13 @@ def _convert_mat(m, order='C'):
     else:
         raise Exception(f'Unknown storage order: {order}')
 
+
+# Modofied by YeLi on 2024-9-19 to support range-separated functionals
 class DFAInfo(core.DFAInfo):
     """The information of a density functional approximation.
     """
 
-    def __init__(self, gga_x, hf_x, name=''):
+    def __init__(self, gga_x, hf_x, name='', beta_x=0.0, omega_x=0.0):
         """
         Constructor of DFAInfo class that represents a DFA.
 
@@ -44,6 +46,10 @@ class DFAInfo(core.DFAInfo):
            The weight of HF exchange in the DFA.
         gga_x : float
            The total weights of ALL GGA and LDA type exchange in the DFA.
+        beta_x : float, default to 0.0
+           The range-separated parameter beta for the DFA.
+        omega_x : float, default to 0.0
+           The range-separated parameter omega for the DFA.
 
         Examples
         --------
@@ -67,16 +73,18 @@ class DFAInfo(core.DFAInfo):
 
         .. code-block:: python
 
-            >>> b3lyp = DFAInfo(0.80, 0.20, "B3LYP")
+            >>> b3lyp = DFAInfo(0.80, 0.20, "B3LYP", 0, 0)
         """
-        core.DFAInfo.__init__(self, gga_x, hf_x, name)
+        core.DFAInfo.__init__(self, gga_x, hf_x, name, beta_x, omega_x)
 
     def __repr__(self):
         "Representation of DFAInfo object."
         return ("<py_losc.DFAInfo> object: {"
                 f"name: {None if self.name() == '' else self.name()}, "
                 f"gga_x: {self.gga_x()}, "
-                f"hf_x: {self.hf_x()}"
+                f"hf_x: {self.hf_x()}, "
+                f"beta_x: {self.beta_x()}, "
+                f"omega_x: {self.omega_x()}"
                 "}")
 
 
@@ -101,13 +109,13 @@ class CurvatureV1(core.CurvatureV1):
         dfa_info : DFAInfo
             The information for the DFA.
         df_pii : numpy.array
-            The three-center integral :math:`\langle p | ii \\rangle`
+            The three-center integral :math:`\langle p | kernel | ii \\rangle`
             used in density fitting, in which index `p` refers to the =
             fitting basis and index `i` refers to the LO. The dimension of
             `df_pii` is [nfitbasis, nlo].
         df_Vpq_inv : numpy.array
             The inverse of integral matrix
-            :math:`\langle p | 1/\mathbf{r} | q \\rangle` used in density
+            :math:`\langle p | kernel | q \\rangle` used in density
             fitting, in which indices `p` and `q` refer to the fitting basis.
             The dimension of `df_Vpq_inv` is [nfitbasis, nfitbasis].
         grid_lo : numpy.array
@@ -124,12 +132,14 @@ class CurvatureV1(core.CurvatureV1):
         """
         # Pybind11 has to call the base.__init__() explicitly, instead of
         # using super().__init__() to initialize the base class.
-        self._df_pii = _convert_mat(df_pii)
-        self._df_vpq_inv = _convert_mat(df_vpq_inv)
-        self._grid_lo = _convert_mat(grid_lo)
-        self._grid_wt = _convert_mat(grid_weight)
-        core.CurvatureV1.__init__(self, dfa_info, self._df_pii,
-                                  self._df_vpq_inv, self._grid_lo,
+        self._df_pii            =   _convert_mat(df_pii)
+        self._df_vpq_inv        =   _convert_mat(df_vpq_inv)
+        self._grid_lo           =   _convert_mat(grid_lo)
+        self._grid_wt           =   _convert_mat(grid_weight)
+        core.CurvatureV1.__init__(self, dfa_info, 
+                                  self._df_pii,
+                                  self._df_vpq_inv,
+                                  self._grid_lo,
                                   self._grid_wt)
 
 
@@ -160,12 +170,14 @@ class CurvatureV2(core.CurvatureV2):
         Same interface for input parameters as `CurvatureV1.__init__`.
 
         """
-        self._df_pii = _convert_mat(df_pii)
-        self._df_vpq_inv = _convert_mat(df_vpq_inv)
-        self._grid_lo = _convert_mat(grid_lo)
-        self._grid_wt = _convert_mat(grid_weight)
-        core.CurvatureV2.__init__(self, dfa_info, self._df_pii,
-                                  self._df_vpq_inv, self._grid_lo,
+        self._df_pii            =   _convert_mat(df_pii)
+        self._df_vpq_inv        =   _convert_mat(df_vpq_inv)
+        self._grid_lo           =   _convert_mat(grid_lo)
+        self._grid_wt           =   _convert_mat(grid_weight)
+        core.CurvatureV2.__init__(self, dfa_info, 
+                                  self._df_pii,
+                                  self._df_vpq_inv, 
+                                  self._grid_lo,
                                   self._grid_wt)
 
 

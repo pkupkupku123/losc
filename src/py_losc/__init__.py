@@ -20,8 +20,10 @@ Following notations are used in the docstrings:
 
 # ==> Interface for LOSC corrections <==
 from py_losc.py_losc_core import ao_hamiltonian_correction
+from py_losc.py_losc_core import ao_hamiltonian_correction_LDA
 from py_losc.py_losc_core import orbital_energy_post_scf
 from py_losc.py_losc_core import energy_correction
+from py_losc.py_losc_core import energy_correction_LDA
 
 # ==> Interface for LOSC local occupation <==
 from py_losc.py_losc_core import local_occupation

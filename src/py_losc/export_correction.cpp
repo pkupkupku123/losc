@@ -41,6 +41,10 @@ void export_correction(py::module &m)
     <https://doi.org/10.1021/acs.jpclett.0c03133>`_
     )pddoc");
 
+    // ao_hamiltonian_correction_LDA
+    m.def("ao_hamiltonian_correction_LDA", &losc::ao_hamiltonian_correction_LDA,
+          R"pddoc(None)pddoc");
+
     // energy_correction
     m.def("energy_correction", &losc::energy_correction, R"pddoc(
     Calculate the total energy correction from LOSC.
@@ -66,6 +70,13 @@ void export_correction(py::module &m)
     This is just the energy correction from LOSC, NOT the total energy of
     LOSC-DFA. Total energy of LOSC-DFA is ``E_losc_dfa = E_dfa + E_losc``.
     )pddoc");
+
+    // energy_correction_LDA
+    m.def("energy_correction_LDA", &losc::energy_correction_LDA, R"pddoc(
+        Calculate the total energy correction from LDA exchange without quadratic
+        approximation.
+        )pddoc");
+
 
     // orbital_energy_post_scf
     m.def("orbital_energy_post_scf", &losc::orbital_energy_post_scf,

@@ -21,11 +21,47 @@ template <class Base> class PyBase : public Base {
                                K            /* Arguments */
         );
     }
+    void C_API_kappa_J(RefMat K) const override
+    {
+        PYBIND11_OVERRIDE_PURE(void,        /* Return type */
+                               Base,        /* Parent class */
+                               C_API_kappa_J, /* Name of function */
+                               K            /* Arguments */
+        );
+    }
+    void C_API_kappa_LDAX(RefMat K) const override
+    {
+        PYBIND11_OVERRIDE_PURE(void,        /* Return type */
+                               Base,        /* Parent class */
+                               C_API_kappa_LDAX, /* Name of function */
+                               K            /* Arguments */
+        );
+    }
     LOSCMatrix kappa() const override
     {
         PYBIND11_OVERRIDE(LOSCMatrix, /* Return type */
                           Base,       /* Parent class */
                           kappa,      /* Name of function */
+                                      /* This function has no argument. We need
+                                       * to keep the comma as suggested by
+                                       * pybind11.*/
+        );
+    }
+    LOSCMatrix kappa_J() const override
+    {
+        PYBIND11_OVERRIDE(LOSCMatrix, /* Return type */
+                          Base,       /* Parent class */
+                          kappa_J,    /* Name of function */
+                                      /* This function has no argument. We need
+                                       * to keep the comma as suggested by
+                                       * pybind11.*/
+        );
+    }
+    LOSCMatrix kappa_LDAX() const override
+    {
+        PYBIND11_OVERRIDE(LOSCMatrix, /* Return type */
+                          Base,       /* Parent class */
+                          kappa_LDAX, /* Name of function */
                                       /* This function has no argument. We need
                                        * to keep the comma as suggested by
                                        * pybind11.*/
@@ -40,12 +76,30 @@ template <class Derive_L1> class PyDerive_L1 : public PyBase<Derive_L1> {
     using PyBase<Derive_L1>::PyBase; // Inherit constructors.
     using PyBase<Derive_L1>::kappa; // bring other overloaded kappa functions to
                                     // avoid hiding.
+    using PyBase<Derive_L1>::kappa_J;
+    using PyBase<Derive_L1>::kappa_LDAX;
 
     void C_API_kappa(RefMat K) const override
     {
         PYBIND11_OVERRIDE(void,        /* Return type */
                           Derive_L1,   /* Parent class */
                           C_API_kappa, /* Name of function */
+                          K            /* Arguments */
+        );
+    }
+    void C_API_kappa_J(RefMat K) const override
+    {
+        PYBIND11_OVERRIDE(void,        /* Return type */
+                          Derive_L1,   /* Parent class */
+                          C_API_kappa_J, /* Name of function */
+                          K            /* Arguments */
+        );
+    }
+    void C_API_kappa_LDAX(RefMat K) const override
+    {
+        PYBIND11_OVERRIDE(void,        /* Return type */
+                          Derive_L1,   /* Parent class */
+                          C_API_kappa_LDAX, /* Name of function */
                           K            /* Arguments */
         );
     }
@@ -57,8 +111,12 @@ void export_curvature_base(py::module &m)
     py::class_<DFAInfo>(m, "DFAInfo",
                         "density functional approximation information",
                         py::dynamic_attr())
-        .def(py::init<double, double, const string &>(), "gga_x"_a, "hf_x"_a,
-             "name"_a = "")
+        .def(py::init<double, double, const string &, double, double>(), 
+             "gga_x"_a, 
+             "hf_x"_a,
+             "name"_a = "",
+             "beta_x"_a = 0.0,
+             "omega_x"_a = 0.0)
         .def("name", &DFAInfo::name,
              R"pddoc(
              Returns
@@ -79,6 +137,20 @@ void export_curvature_base(py::module &m)
              -------
              float
                 The weight of HF exchange of the DFA.
+             )pddoc")
+        .def("beta_x", &DFAInfo::beta_x,
+             R"pddoc(
+             Returns
+             -------
+             float
+                The parameter beta in range-separation.
+             )pddoc")
+        .def("omega_x", &DFAInfo::omega_x,
+             R"pddoc(
+             Returns
+             -------
+             float
+                The parameter omega in range-separation.
              )pddoc");
 
     /* losc::CurvatureBase */
@@ -91,8 +163,11 @@ void export_curvature_base(py::module &m)
                       ConstRefMat &,   // grid_lo
                       ConstRefVec &    // grid_weight
                       >(),
-             "dfa_info"_a, "df_pii"_a.noconvert(), "df_Vpq_inv"_a.noconvert(),
-             "grid_lo"_a.noconvert(), "grid_weight"_a.noconvert())
+             "dfa_info"_a, 
+             "df_pii"_a.noconvert(), 
+             "df_Vpq_inv"_a.noconvert(),
+             "grid_lo"_a.noconvert(), 
+             "grid_weight"_a.noconvert())
         // nlo
         .def("nlo", &CurvatureBase::nlo, R"pddoc(
             Returns
@@ -123,7 +198,28 @@ void export_curvature_base(py::module &m)
             -------
             numpy.array
                 The LOSC curvature matrix with dimension [nlo, nlo].
+            )pddoc")
+        // kappa_J
+        .def("kappa_J",
+             static_cast<LOSCMatrix (CurvatureBase::*)() const>(
+                 &CurvatureBase::kappa_J),
+             R"pddoc(
+            Returns
+            -------
+            numpy.array
+                The LOSC curvature_J matrix with dimension [nlo, nlo].
+            )pddoc")
+        // kappa_LDAX
+        .def("kappa_LDAX",
+             static_cast<LOSCMatrix (CurvatureBase::*)() const>(
+                 &CurvatureBase::kappa_LDAX),
+             R"pddoc(
+            Returns
+            -------
+            numpy.array
+                The LOSC curvature_LDAX matrix with dimension [nlo, nlo].
             )pddoc");
+
 }
 
 void export_curvature_v1(py::module &m)
@@ -138,8 +234,11 @@ void export_curvature_v1(py::module &m)
                       ConstRefMat &,   // grid_lo
                       ConstRefVec &    // grid_weight
                       >(),
-             "dfa_info"_a, "df_pii"_a.noconvert(), "df_Vpq_inv"_a.noconvert(),
-             "grid_lo"_a.noconvert(), "grid_weight"_a.noconvert(),
+             "dfa_info"_a, 
+             "df_pii"_a.noconvert(), 
+             "df_Vpq_inv"_a.noconvert(),
+             "grid_lo"_a.noconvert(), 
+             "grid_weight"_a.noconvert(),
              R"pddoc(
             Constructor of LOSC curvature version1.
 
@@ -154,7 +253,7 @@ void export_curvature_v1(py::module &m)
                 `df_pii` is [nfitbasis, nlo].
             df_Vpq_inv : numpy.array
                 The inverse of integral matrix
-                :math:`\langle p | 1/r | q \rangle` used in density fitting, in
+                :math:`\langle p | kernel | q \rangle` used in density fitting, in
                 which indices `p` and `q` refer to the fitting basis. The
                 dimension of `df_Vpq_inv` is [nfitbasis, nfitbasis].
             grid_lo : numpy.array
@@ -192,8 +291,11 @@ void export_curvature_v2(py::module &m)
                       ConstRefMat &,   // grid_lo
                       ConstRefVec &    // grid_weight
                       >(),
-             "dfa_info"_a, "df_pii"_a.noconvert(), "df_Vpq_inv"_a.noconvert(),
-             "grid_lo"_a.noconvert(), "grid_weight"_a.noconvert(),
+             "dfa_info"_a, 
+             "df_pii"_a.noconvert(), 
+             "df_Vpq_inv"_a.noconvert(),
+             "grid_lo"_a.noconvert(), 
+             "grid_weight"_a.noconvert(),
              R"pddoc(
             Constructor of LOSC curvature version2.
 
@@ -207,6 +309,32 @@ void export_curvature_v2(py::module &m)
             )pddoc")
         // CurvatureV2 class has no new functions compared to CurvatureBase.
         // So no more functions need to be exported here.
+
+        // Now there are two new functions to be exported.
+
+        // .def("C_API_S_lo", &CurvatureV2::C_API_S_lo, R"pddoc(
+        //     Parameters
+        //     ----------
+        //     S_lo : numpy.array
+        //         The overlap matrix of LOs on grid points with dimension of
+        //         [nlo, nlo].
+
+        //     Returns
+        //     -------
+        //     None
+        //     )pddoc")
+
+        // .def("kappa1_to_kappa2", &CurvatureV2::kappa1_to_kappa2, R"pddoc(
+        //     Parameters
+        //     ----------
+        //     kappa1 : numpy.array
+        //         The LOSC curvature matrix version 1 with dimension of [nlo, nlo].
+
+        //     Returns
+        //     -------
+        //     numpy.array
+        //         The LOSC curvature matrix version 2 with dimension of [nlo, nlo].
+        //     )pddoc")
 
         // set_tau
         .def("set_tau", &CurvatureV2::set_tau, R"pddoc(
