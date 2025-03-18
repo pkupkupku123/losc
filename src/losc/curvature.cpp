@@ -6,13 +6,19 @@ namespace losc {
 
 using exception::DimensionError;
 
-CurvatureBase::CurvatureBase(const DFAInfo &dfa_info, ConstRefMat &df_pii,
-                             ConstRefMat &df_Vpq_inverse, ConstRefMat &grid_lo,
+CurvatureBase::CurvatureBase(const DFAInfo &dfa_info, 
+                             ConstRefMat &df_pii,
+                             ConstRefMat &df_Vpq_inverse,
+                             ConstRefMat &grid_lo,
                              ConstRefVec &grid_weight)
-    : npts_{grid_weight.size()}, nlo_{df_pii.cols()},
-      nfitbasis_{df_pii.rows()}, dfa_info_{dfa_info}, df_pii_{df_pii},
-      df_Vpq_inverse_{df_Vpq_inverse}, grid_lo_{grid_lo}, grid_weight_{
-                                                              grid_weight}
+    : npts_{grid_weight.size()}, 
+      nlo_{df_pii.cols()},
+      nfitbasis_{df_pii.rows()}, 
+      dfa_info_{dfa_info}, 
+      df_pii_{df_pii},
+      df_Vpq_inverse_{df_Vpq_inverse}, 
+      grid_lo_{grid_lo}, 
+      grid_weight_{grid_weight}
 {
     if (!mtx_match_dimension(df_Vpq_inverse_, nfitbasis_, nfitbasis_)) {
         throw DimensionError(

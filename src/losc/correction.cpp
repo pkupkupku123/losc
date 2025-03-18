@@ -3,8 +3,20 @@
 #include <losc/exception.hpp>
 #include <sstream>
 #include <utility>
+#include <cmath> // Added by YeLi to use std::pow() function.
 
 namespace losc {
+
+
+double sign_power(double x, double p)
+{
+    if (x < 0) {
+        return -std::pow(-x, p);
+    } else {
+        return std::pow(x, p);
+    }
+}
+
 
 void C_API_ao_hamiltonian_correction(ConstRefMat &S, ConstRefMat &C_lo,
                                      ConstRefMat &Curvature,
@@ -52,6 +64,83 @@ void C_API_ao_hamiltonian_correction(ConstRefMat &S, ConstRefMat &C_lo,
     H_losc = S * C_lo * A * C_lo.transpose() * S;
 }
 
+
+/**
+ * Next function ddded by YeLi
+*/
+
+
+void C_API_ao_hamiltonian_correction_LDA(ConstRefMat &S, ConstRefMat &C_lo,
+                                         ConstRefMat &Curvature_J,
+                                         ConstRefMat &Curvature_LDAX,
+                                         ConstRefMat &LocalOcc, RefMat H_losc)
+{
+    const size_t nlo = C_lo.cols();
+    const size_t nbasis = C_lo.rows();
+
+    if (nlo > nbasis) {
+        throw exception::DimensionError(
+            "losc::ao_hamiltonian_correction_LDA(): the number of LOs is larger "
+            "than the number of AOs.");
+    }
+    if (!mtx_match_dimension(S, nbasis, nbasis)) {
+        throw exception::DimensionError(
+            S, nbasis, nbasis,
+            "losc::ao_hamiltonian_correction_LDA(): mismatch AO overlap matrix.");
+    }
+    if (!mtx_match_dimension(Curvature_J, nlo, nlo)) {
+        throw exception::DimensionError(
+            Curvature_J, nlo, nlo,
+            "losc::ao_hamiltonian_correction_LDA(): mismatch curvature_J matrix.");
+    }
+    if (!mtx_match_dimension(Curvature_LDAX, nlo, nlo)) {
+        throw exception::DimensionError(
+            Curvature_LDAX, nlo, nlo,
+            "losc::ao_hamiltonian_correction_LDA(): mismatch curvature_LDAX matrix.");
+    }
+    if (!mtx_match_dimension(LocalOcc, nlo, nlo)) {
+        throw exception::DimensionError(LocalOcc, nlo, nlo,
+                                        "losc::ao_hamiltonian_correction_LDA(): "
+                                        "mismatch local occupation matrix.");
+    }
+
+    // build A matrix.
+    LOSCMatrix A(nlo, nlo);
+    for (size_t i = 0; i < nlo; ++i) {
+        for (size_t j = 0; j <= i; ++j) {
+            const double K_ij = Curvature_J(i, j);
+            const double L_ij = LocalOcc(i, j);
+            if (i != j) {
+                A(i, j) = -K_ij * L_ij;
+                A(j, i) = A(i, j);
+            } else {
+                A(i, j) = 0.5 * K_ij - K_ij * L_ij;
+            }
+        }
+    }
+
+    // build B matrix.
+    LOSCMatrix B(nlo, nlo);
+    for (size_t i = 0; i < nlo; ++i) {
+        for (size_t j = 0; j <= i; ++j) {
+            const double K_ij = Curvature_LDAX(i, j);
+            const double L_ij = LocalOcc(i, j);
+            if (i != j) {
+                B(i, j) = -K_ij * ( 2.0 / 3.0 ) * sign_power(L_ij, 1.0 / 3.0);
+                B(j, i) = B(i, j);
+            } else {
+                B(i, j) = 0.5 * K_ij - K_ij * ( 2.0 / 3.0 ) * sign_power(L_ij, 1.0 / 3.0);
+            }
+        }
+    }
+
+    H_losc = S * C_lo * ( A + B ) * C_lo.transpose() * S;
+}
+
+/**
+ * END of YeLi
+*/
+
 LOSCMatrix ao_hamiltonian_correction(ConstRefMat &S, ConstRefMat &C_lo,
                                      ConstRefMat &Curvature,
                                      ConstRefMat &LocalOcc)
@@ -61,6 +150,26 @@ LOSCMatrix ao_hamiltonian_correction(ConstRefMat &S, ConstRefMat &C_lo,
     C_API_ao_hamiltonian_correction(S, C_lo, Curvature, LocalOcc, H_losc);
     return std::move(H_losc);
 }
+
+
+/**
+ * Next function added by YeLi
+*/
+
+LOSCMatrix ao_hamiltonian_correction_LDA(ConstRefMat &S, ConstRefMat &C_lo,
+                                         ConstRefMat &Curvature_J,
+                                         ConstRefMat &Curvature_LDAX,
+                                         ConstRefMat &LocalOcc)
+{
+    const size_t nbasis = S.cols();
+    LOSCMatrix H_losc(nbasis, nbasis);
+    C_API_ao_hamiltonian_correction_LDA(S, C_lo, Curvature_J, Curvature_LDAX, LocalOcc, H_losc);
+    return std::move(H_losc);
+}
+
+/**
+ * END of YeLi
+*/
 
 double energy_correction(ConstRefMat &Curvature, ConstRefMat &LocalOcc)
 {
@@ -87,6 +196,52 @@ double energy_correction(ConstRefMat &Curvature, ConstRefMat &LocalOcc)
     return energy;
 }
 
+
+/**
+ * Next function added by YeLi
+*/
+
+double energy_correction_LDA(ConstRefMat &Curvature_J,
+                             ConstRefMat &Curvature_LDAX, 
+                             ConstRefMat &LocalOcc)
+{
+    const size_t nlo = Curvature_J.rows();
+    if (!mtx_match_dimension(Curvature_J, nlo, nlo)) {
+        throw exception::DimensionError(
+            Curvature_J, nlo, nlo,
+            "losc::energy_correction_LDA(): mismatch curvature_J matrix.");
+    }
+    if (!mtx_match_dimension(Curvature_LDAX, nlo, nlo)) {
+        throw exception::DimensionError(
+            Curvature_LDAX, nlo, nlo,
+            "losc::energy_correction_LDA(): mismatch curvature_LDAX matrix.");
+    }
+    if (!mtx_match_dimension(LocalOcc, nlo, nlo)) {
+        throw exception::DimensionError(LocalOcc, nlo, nlo,
+                                        "losc::energy_correction(): "
+                                        "mismatch local occupation matrix.");
+    }
+
+    double energy = 0.0;
+    for (size_t i = 0; i < nlo; ++i) {
+        energy +=
+            0.5 * Curvature_J(i, i) * LocalOcc(i, i) * (1.0 - LocalOcc(i, i));
+        energy +=
+            0.5 * Curvature_LDAX(i, i) * LocalOcc(i, i) * (1.0 - sign_power(LocalOcc(i, i), 1.0 / 3.0));
+        for (size_t j = 0; j < i; ++j) {
+            energy -= Curvature_J(i, j) * LocalOcc(i, j) * LocalOcc(i, j);
+            energy -= Curvature_LDAX(i, j) * LocalOcc(i, j) * sign_power(LocalOcc(i, j), 1.0 / 3.0);
+        }
+    }
+    return energy;
+}
+
+
+/**
+ * END of YeLi
+*/
+
+
 void C_API_orbital_energy_post_scf(ConstRefMat &H_dfa, ConstRefMat &H_losc,
                                    ConstRefMat &C_co, double *eig)
 {
@@ -110,6 +265,9 @@ void C_API_orbital_energy_post_scf(ConstRefMat &H_dfa, ConstRefMat &H_losc,
         eig[i] = C_co.col(i).transpose() * H_tot * C_co.col(i);
     }
 }
+
+
+
 
 vector<double> orbital_energy_post_scf(ConstRefMat &H_dfa, ConstRefMat &H_losc,
                                        ConstRefMat &C_co)

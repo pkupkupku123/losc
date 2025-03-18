@@ -12,6 +12,7 @@ LOSCMatrix CurvatureV1::compute_kappa_J() const
     return df_pii_.transpose() * df_Vpq_inverse_ * df_pii_;
 }
 
+
 LOSCMatrix CurvatureV1::compute_kappa_xc() const
 {
     LOSCMatrix kappa_xc(nlo_, nlo_);
@@ -65,10 +66,40 @@ void CurvatureV1::C_API_kappa(RefMat K) const
             K, nlo_, nlo_,
             "CurvatureV1::kappa(): wrong dimension of the input kappa matrix.");
     }
-    LOSCMatrix kappa_J = compute_kappa_J();
-    LOSCMatrix kappa_xc = compute_kappa_xc();
-    K.noalias() = (1 - dfa_info_.hf_x()) * kappa_J -
-                  dfa_info_.gga_x() * (2.0 * tau_ * cx_ / 3.0) * kappa_xc;
+    LOSCMatrix kappa_J          =   compute_kappa_J();
+    LOSCMatrix kappa_xc         =   compute_kappa_xc();
+    K.noalias() = kappa_J 
+                  - dfa_info_.gga_x() * (2.0 * tau_ * cx_ / 3.0) * kappa_xc;
 }
+
+
+/* Following added by YeLi */
+
+/* An implementation of corrections of LDA exchange without quadratic approximation */
+
+void CurvatureV1::C_API_kappa_LDAX(RefMat K) const
+{
+    if (!mtx_match_dimension(K, nlo_, nlo_)) {
+        throw exception::DimensionError(
+            K, nlo_, nlo_,
+            "CurvatureV1::kappa(): wrong dimension of the input kappa matrix.");
+    }
+    LOSCMatrix kappa_xc = compute_kappa_xc();
+    K.noalias() = - dfa_info_.gga_x() * (2.0 * cx_) * kappa_xc;
+}
+
+/* An implementation of corrections of J alone */
+
+void CurvatureV1::C_API_kappa_J(RefMat K) const
+{
+    if (!mtx_match_dimension(K, nlo_, nlo_)) {
+        throw exception::DimensionError(
+            K, nlo_, nlo_,
+            "CurvatureV1::kappa(): wrong dimension of the input kappa matrix.");
+    }
+    LOSCMatrix kappa_J = compute_kappa_J();
+    K.noalias() = kappa_J ;
+}
+
 
 } // namespace losc
