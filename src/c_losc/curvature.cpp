@@ -11,10 +11,11 @@ extern "C" {
 //**********************************************
 // ==> Binding `losc::DFAInfo` methods.
 //**********************************************
-LoscDFAInfo *losc_dfa_info_create(double gga_x, double hf_x, const char *name)
+LoscDFAInfo *losc_dfa_info_create(double gga_x, double hf_x, const char *name, 
+                                    double beta_x, double omega_x)
 {
     return reinterpret_cast<LoscDFAInfo *>(
-        new losc::DFAInfo(gga_x, hf_x, name));
+        new losc::DFAInfo(gga_x, hf_x, name, beta_x, omega_x));
 }
 
 void _losc_dfa_info_free(LoscDFAInfo **pptr_self)
