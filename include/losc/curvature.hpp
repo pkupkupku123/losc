@@ -26,7 +26,11 @@ using std::string;
 class DFAInfo {
     const string name_; /**< DFA name. */
     double gga_x_;      /**< Total weights of all GGA and LDA type exchanges. */
-    double hf_x_;       /**< Total weights of Hatree-Fock exchange. */
+    double hf_x_;       /**< Total weights of Hatree-Fock exchange, 
+                             same as the parameter alpha in range-separation. */
+    double beta_x_;     /**< Parameter beta in range-separation. */
+    double omega_x_;    /**< Parameter omega in range-separation. */
+
 
   public:
     /**
@@ -34,6 +38,8 @@ class DFAInfo {
      * @param [in] gga_x: The total weights of all GGA and LDA type exchanges.
      * @param [in] hf_x: The total weights of HF exchanges.
      * @param [in] name: The name of the DFA. Default to an empty string.
+     * @param [in] beta_x: The parameter beta in range-separation. Default to 0.
+     * @param [in] omega_x: The parameter omega in range-separation. Default to 0.
      * @par Example
      * Taking B3LYP functional as an example. The B3LYP functional is
      * \f[
@@ -56,8 +62,12 @@ class DFAInfo {
      * b3lyp = DFAInfo(0.80, 0.20, "B3LYP")
      * @endcode
      */
-    DFAInfo(double gga_x, double hf_x, const string &name = "")
-        : name_{name}, gga_x_{gga_x}, hf_x_{hf_x}
+    DFAInfo(double gga_x, 
+            double hf_x, 
+            const string &name = "", 
+            double beta_x = 0.0, 
+            double omega_x = 0.0)
+        : name_{name}, gga_x_{gga_x}, hf_x_{hf_x}, beta_x_{beta_x}, omega_x_{omega_x}
     {
     }
 
@@ -75,6 +85,16 @@ class DFAInfo {
      * @brief Return the total weights of HF exchanges of the DFA.
      */
     const double &hf_x() const { return hf_x_; }
+
+    /**
+     * @brief Return the parameter beta in range-separation.
+     */
+    const double &beta_x() const { return beta_x_; }
+
+    /**
+     * @brief Return the parameter omega in range-separation.
+     */
+    const double &omega_x() const { return omega_x_; }
 };
 
 /**
@@ -114,7 +134,7 @@ class CurvatureBase {
      * @param [in] df_pii Three-body integral \f$ \langle p |ii \rangle \f$
      * used in density fitting. Index `p` is for fitbasis and index `i`
      * is for LOs. The dimension of `df_pii` is `[nfitbasis, nlo]`.
-     * @param [in] df_Vpq_inv Inverse of \f$ \langle p | 1/\mathbf{r}
+     * @param [in] df_Vpq_inv Inverse of \f$ \langle p | kernel
      * | q \rangle \f$ matrix used in density fitting. Index `p` and `q`
      * are for LOs. The dimension of `df_Vpq_inv` is `[nfitbasis, nfitbasis]`.
      * @param [in] grid_lo LOs' value on grid points with dimension of
@@ -130,8 +150,10 @@ class CurvatureBase {
      * @brief Constructor of CurvatureBase.
      * @copydoc __param__CurvatureBase
      */
-    CurvatureBase(const DFAInfo &dfa, ConstRefMat &df_pii,
-                  ConstRefMat &df_Vpq_inv, ConstRefMat &grid_lo,
+    CurvatureBase(const DFAInfo &dfa, 
+                  ConstRefMat &df_pii,
+                  ConstRefMat &df_Vpq_inv, 
+                  ConstRefMat &grid_lo,
                   ConstRefVec &grid_weight);
 
     /**
@@ -152,6 +174,29 @@ class CurvatureBase {
     {
         LOSCMatrix K(nlo_, nlo_);
         C_API_kappa(K);
+        return std::move(K);
+    }
+
+    /**
+    * Added By YeLi
+    * @brief Compute the LOSC curvature matrix of J alone.
+    */
+    virtual LOSCMatrix kappa_J() const
+    {
+        LOSCMatrix K(nlo_, nlo_);
+        C_API_kappa_J(K);
+        return std::move(K);
+    }
+
+    /**
+    * Added By YeLi
+    * @brief Compute the LOSC curvature matrix of LDA exchange alone
+    * without quadratic approximation.
+    */
+    virtual LOSCMatrix kappa_LDAX() const
+    {
+        LOSCMatrix K(nlo_, nlo_);
+        C_API_kappa_LDAX(K);
         return std::move(K);
     }
 
@@ -181,6 +226,8 @@ class CurvatureBase {
      * @copydoc __param__K
      */
     virtual void C_API_kappa(RefMat K) const = 0;
+    virtual void C_API_kappa_J(RefMat K) const = 0;
+    virtual void C_API_kappa_LDAX(RefMat K) const = 0;
 };
 
 /**
@@ -204,7 +251,7 @@ class CurvatureV1 : public CurvatureBase {
      * @details See Eq. (10) in the original LOSC paper
      * (https://doi.org/10.1093/nsr/nwx111).
      */
-    double tau_ = 1.2378;
+    double tau_ = 1.2378;  
 
     LOSCMatrix compute_kappa_J() const;
     LOSCMatrix compute_kappa_xc() const;
@@ -214,10 +261,14 @@ class CurvatureV1 : public CurvatureBase {
      * @brief Class constructor for curvature version 1.
      * @copydoc __param__CurvatureBase
      */
-    CurvatureV1(const DFAInfo &dfa, ConstRefMat &df_pii,
-                ConstRefMat &df_Vpq_inv, ConstRefMat &grid_lo,
+    CurvatureV1(const DFAInfo &dfa, 
+                ConstRefMat &df_pii,
+                ConstRefMat &df_Vpq_inv, 
+                ConstRefMat &grid_lo,
                 ConstRefVec &grid_weight)
-        : CurvatureBase(dfa, df_pii, df_Vpq_inv, grid_lo, grid_weight)
+        : CurvatureBase(dfa, 
+                        df_pii, df_Vpq_inv, 
+                        grid_lo, grid_weight)
     {
     }
 
@@ -231,6 +282,8 @@ class CurvatureV1 : public CurvatureBase {
      * @copydoc __param__K
      */
     virtual void C_API_kappa(RefMat K) const override;
+    virtual void C_API_kappa_J(RefMat K) const override;
+    virtual void C_API_kappa_LDAX(RefMat K) const override;
 
     /**
      * @brief Set parameter tau.
@@ -246,6 +299,13 @@ class CurvatureV1 : public CurvatureBase {
  */
 class CurvatureV2 : public CurvatureBase {
   private:
+    void C_API_S_lo(RefMat S_lo) const;
+
+    void kappa1_to_kappa2(ConstRefMat &S_lo, 
+                          ConstRefMat &kappa1,
+                          RefMat kappa2) const;
+
+
     /**
      * @brief Paramerter \f$ \zeta \f$ in curvature.
      * @details See Eq. 8 in the LOSC2 paper.
@@ -269,10 +329,14 @@ class CurvatureV2 : public CurvatureBase {
      * @brief Class constructor for curvature version 2.
      * @copydoc __param__CurvatureBase
      */
-    CurvatureV2(const DFAInfo &dfa, ConstRefMat &df_pii,
-                ConstRefMat &df_Vpq_inv, ConstRefMat &grid_lo,
+    CurvatureV2(const DFAInfo &dfa, 
+                ConstRefMat &df_pii,
+                ConstRefMat &df_Vpq_inv, 
+                ConstRefMat &grid_lo,
                 ConstRefVec &grid_weight)
-        : CurvatureBase(dfa, df_pii, df_Vpq_inv, grid_lo, grid_weight)
+        : CurvatureBase(dfa, 
+                        df_pii, df_Vpq_inv, 
+                        grid_lo, grid_weight)
     {
     }
 
@@ -286,6 +350,8 @@ class CurvatureV2 : public CurvatureBase {
      * @copydoc __param__K
      */
     virtual void C_API_kappa(RefMat K) const override;
+    virtual void C_API_kappa_J(RefMat K) const override;
+    virtual void C_API_kappa_LDAX(RefMat K) const override;
 
     /**
      * @brief Set parameter \f$ \tau \f$.

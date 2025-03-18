@@ -14,6 +14,14 @@ namespace losc {
 using std::vector;
 
 /**
+ * @brief Calculate the power of a number, sign_power(x,a) = sgn(x) * (abs(x)^a).
+ * @param [in] x The number to be powered.
+ * @param [in] p The power.
+ * @return The powered number.
+ */
+double sign_power(double x, double p);
+
+/**
  * @class __param__ao_hamiltonian_correction
  * @param [in] S AOs overlap matrix with dimension of `[nbasis, nbasis]`.
  * @copydoc __param__C_lo
@@ -50,9 +58,25 @@ using std::vector;
  * @copydoc __return__losc_Hamiltonian
  * @copydoc __see__ao_hamiltonian_correction
  */
-LOSCMatrix ao_hamiltonian_correction(ConstRefMat &S, ConstRefMat &C_lo,
+LOSCMatrix ao_hamiltonian_correction(ConstRefMat &S, 
+                                     ConstRefMat &C_lo,
                                      ConstRefMat &Curvature,
                                      ConstRefMat &LocalOcc);
+
+
+/**
+ * Next function added by YeLi
+ */
+
+LOSCMatrix ao_hamiltonian_correction_LDA(ConstRefMat &S, 
+                                         ConstRefMat &C_lo,
+                                         ConstRefMat &Curvature_J,
+                                         ConstRefMat &Curvature_LDAX,
+                                         ConstRefMat &LocalOcc);
+
+/**
+ * End of YeLi
+ */                                         
 
 /**
  * @brief Calculate the total energy correction from LOSC.
@@ -69,6 +93,18 @@ LOSCMatrix ao_hamiltonian_correction(ConstRefMat &S, ConstRefMat &C_lo,
  * this function twice (for unrestricted KS calculation definitely).
  */
 double energy_correction(ConstRefMat &Curvature, ConstRefMat &LocalOcc);
+
+/**
+ * Next function added by YeLi
+ */
+
+double energy_correction_LDA(ConstRefMat &Curvature_J,
+                             ConstRefMat &Curvature_LDAX, 
+                             ConstRefMat &LocalOcc);
+
+/**
+ * End of YeLi
+ */
 
 /**
  * @class __param__orbital_energy_post_scf
@@ -118,7 +154,8 @@ double energy_correction(ConstRefMat &Curvature, ConstRefMat &LocalOcc);
  * Hamiltonian under AOs.
  * @copydoc __note__orbital_energy_post_scf
  */
-vector<double> orbital_energy_post_scf(ConstRefMat &H_dfa, ConstRefMat &H_losc,
+vector<double> orbital_energy_post_scf(ConstRefMat &H_dfa, 
+                                       ConstRefMat &H_losc,
                                        ConstRefMat &C_co);
 
 /**
@@ -129,9 +166,27 @@ vector<double> orbital_energy_post_scf(ConstRefMat &H_dfa, ConstRefMat &H_losc,
  * @copydoc __see__ao_hamiltonian_correction
  * @see losc::ao_hamiltonian_correction()
  */
-void C_API_ao_hamiltonian_correction(ConstRefMat &S, ConstRefMat &C_lo,
+void C_API_ao_hamiltonian_correction(ConstRefMat &S, 
+                                     ConstRefMat &C_lo,
                                      ConstRefMat &Curvature,
-                                     ConstRefMat &LocalOcc, RefMat H_losc);
+                                     ConstRefMat &LocalOcc, 
+                                     RefMat H_losc);
+
+/**
+ * Next function added by YeLi
+ */
+
+void C_API_ao_hamiltonian_correction_LDA(ConstRefMat &S, 
+                                         ConstRefMat &C_lo,
+                                         ConstRefMat &Curvature_J,
+                                         ConstRefMat &Curvature_LDAX,
+                                         ConstRefMat &LocalOcc, 
+                                         RefMat H_losc);
+
+/**
+ * End of YeLi
+ */
+
 
 /**
  * @brief C interface to calculate the corrected orbital energies from LOSC in a
@@ -143,8 +198,10 @@ void C_API_ao_hamiltonian_correction(ConstRefMat &S, ConstRefMat &C_lo,
  * @see losc::orbital_energy_post_scf()
  * @copydoc __note__orbital_energy_post_scf
  */
-void C_API_orbital_energy_post_scf(ConstRefMat &H_dfa, ConstRefMat &H_losc,
-                                   ConstRefMat &C_co, double *eig);
+void C_API_orbital_energy_post_scf(ConstRefMat &H_dfa, 
+                                   ConstRefMat &H_losc,
+                                   ConstRefMat &C_co, 
+                                   double *eig);
 
 } // namespace losc
 
