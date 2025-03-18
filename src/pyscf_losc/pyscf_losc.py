@@ -12,22 +12,40 @@ from pyscf_losc import options
 #############################################################################
 
 #: `py_losc.DFAInfo` object for B3LYP functional.
-B3LYP = py_losc.DFAInfo(0.8, 0.2, 'B3LYP')
+B3LYP = py_losc.DFAInfo(0.8, 0.2, 'B3LYP', 0, 0)
 
 #: `py_losc.DFAInfo` object for SVWN functional.
-SVWN = py_losc.DFAInfo(1.0, 0, 'SVWN')
+SVWN = py_losc.DFAInfo(1.0, 0, 'SVWN', 0, 0)
 
 #: `py_losc.DFAInfo` object for BLYP functional.
-BLYP = py_losc.DFAInfo(1.0, 0, 'BLYP')
+BLYP = py_losc.DFAInfo(1.0, 0, 'BLYP', 0, 0)
 
 #: `py_losc.DFAInfo` object for PBE functional.
-PBE = py_losc.DFAInfo(1.0, 0, 'PBE')
+PBE = py_losc.DFAInfo(1.0, 0, 'PBE', 0, 0)
 
 #: `py_losc.DFAInfo` object for pure GGA type functional.
-GGA = py_losc.DFAInfo(1.0, 0, 'Pure GGA functional')
+GGA = py_losc.DFAInfo(1.0, 0, 'Pure GGA functional', 0, 0)
 
 #: `py_losc.DFAInfo` object for PBE0 functional.
-PBE0 = py_losc.DFAInfo(0.75, 0.25, 'PBE0')
+PBE0 = py_losc.DFAInfo(0.75, 0.25, 'PBE0', 0, 0)
+
+#: `py_losc.DFAInfo` object for CAM-B3LYP functional.
+CAM_B3LYP = py_losc.DFAInfo(0.81, 0.19, 'CAM-B3LYP', 0.460, 0.33)
+
+#: `py_losc.DFAInfo` object for WB97 functional.
+WB97 = py_losc.DFAInfo(1.0, 0.0, 'WB97', 1.0, 0.4)
+WB97_TUNED = py_losc.DFAInfo(0.785, 0.0, 'WB97', 1.0, 0.4)
+
+#: `py_losc.DFAInfo` object for WB97X functional.
+WB97X = py_losc.DFAInfo(0.842, 0.158, 'WB97X', 0.842, 0.3)
+WB97X_TUNED = py_losc.DFAInfo(0.743, 0.158, 'WB97X', 0.842, 0.3)
+
+#: `py_losc.DFAInfo` object for WB97X-V functional.
+WB97X_V = py_losc.DFAInfo(0.833, 0.167, 'WB97X-V', 0.833, 0.3)
+
+#: `py_losc.DFAInfo` object for WB97M-V functional.
+WB97M_V = py_losc.DFAInfo(0.85, 0.15, 'WB97M-V', 0.85, 0.3)
+WB97M_V_TUNED = py_losc.DFAInfo(0.64, 0.15, 'WB97M-V', 0.85, 0.3)
 
 
 def _validate_inp(mf):
@@ -40,7 +58,7 @@ def _validate_inp(mf):
         Restricted/Unrestricted KS SCF object.
     """
 
-    # check type
+    # chek type
     if not isinstance(mf, pyscf.dft.rks.RKS):
         if not isinstance(mf, pyscf.dft.uks.UKS):
             raise Exception(
@@ -52,18 +70,18 @@ def _validate_inp(mf):
         raise Exception("Sorry, LOSC only supports C1 symmetry.")
 
     # check functional
-    if mf.omega != None:
-        raise Exception("Sorry, LOSC does not support range-separated \
-            functional.") 
+    # if mf.omega != None:
+    #     raise Exception("Sorry, LOSC does not support range-separated \
+    #         functional.") 
     
 
 def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
-                  return_losc_data=False, window=None, fmol=False):
+                  return_losc_data=False, window=None, fitbasis='def2-qzvpp-ri'):
     """Perform the post-SCF-LOSC calculation.
 
     Parameters
     ----------
-    dfa_info : py_losc.DFAInfo
+    dfa_info : ?????????? py_losc.DFAInfo
         The information of the parent DFA, including the weights of exchanges.
     mf : pyscf.dft.rks.RKS or pyscf.dft.uks.UKS
         The converged starting wavefunction from PySCF calculation.
@@ -128,7 +146,7 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
         The total energy from the post-SCF-LOSC calculation.
     orbital_energies : [np.array, ...]
         Orbital energies from the post-SCF-LOSC calculation. If the input mf
-        is a pyscf.dft.rks.RKS object, `orbital_energies` only includes the 
+        is a pyscf.dft.rks.RKS object, `otbital_energies` only includes the 
         alpha orbital energies. If the input mf is pyscf.dft.uks.UKS object,
         `orbital_energies` includes both alpha and beta energies in order.
     losc_data : dict
@@ -146,11 +164,6 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
             'Input for "orbital_energy_unit" has to be "eV" or "au".'
         )
     local_print = utils.init_local_print(verbose, mf.mol)
-
-    if orbital_energy_unit == 'au':
-        eig_factor = 1.0
-    else:
-        eig_factor = 27.21138602
 
     # print header
     out_file = mf.mol.output
@@ -267,8 +280,6 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
     # step 4.2: create losc localizer object
     C_lo = [None] * nspin
     U = [None] * nspin
-    if fmol:
-        orbitalet_e = [None] * nspin
     for s in range(nspin):
         if select_CO_idx[s]:
             idx_start, idx_end = select_CO_idx[s]
@@ -311,46 +322,78 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
             local_print(
                 1, ' ==> convergence:          False, WARNING!!!'
             )
-        if fmol:
-            orbitalet_e[s] = utils.calc_orbitalet_e(mf.mo_energy[s], U[s])
-            orbitalet_e[s], C_lo[s] = utils.sort_orbitalets(
-                orbitalet_e[s], C_lo[s])
     
     #########################################################################
     # step 5: compute LOSC curvature matrix                                 #
     #########################################################################
-    if not fmol:
-        # step 5.1: density fitting
-        #           see func form_df_matrix(mf, C_lo) in utils.py
-        df_pii, df_Vpq_inv = utils.form_df_matrix(mf, C_lo)
- 
-        # step 5.2: build weights of grid points
-        grid_w = mf.grids.weights
- 
-        # step 5.3: compute values of LOs on grid points
-        #           see func form_grid_lo() in utils.py
-        grid_lo = [utils.form_grid_lo(mf, C_lo_) for C_lo_ in C_lo]
- 
-        # step 5.4: build LOSC curvature matrices
-        curvature = [None] * nspin
+    # step 5.1: density fitting
+    #           see func form_df_matrix(mf, C_lo) in utils.py
+    df_pii, df_Vpq_inv = utils.form_df_matrix(mf, C_lo, dfa_info, df_basis=fitbasis)
+
+    # step 5.2: build weights of grid points
+    grid_w = mf.grids.weights
+
+    # step 5.3: compute values of LOs on grid points
+    #           see func form_grid_lo() in utils.py
+    grid_lo = [utils.form_grid_lo(mf, C_lo_) for C_lo_ in C_lo]
+
+    # step 5.4: build LOSC curvature matrices
+    j_x_separation    = options.get_param('curvature', 'j_x_separation')
+    curvature_version = options.get_param('curvature', 'version')
+    if j_x_separation:
+        curvature_J = [None] * nspin
+        curvature_X = [None] * nspin
         for s in range(nspin):
-            curvature_version = options.get_param('curvature', 'version')
             if curvature_version == 2:
-                curvature_helper = py_losc.CurvatureV2(dfa_info, df_pii[s],
-                                                       df_Vpq_inv, grid_lo[s],
+                curvature_helper = py_losc.CurvatureV2(dfa_info, 
+                                                       df_pii[s],
+                                                       df_Vpq_inv, 
+                                                       grid_lo[s],
                                                        grid_w)
                 curvature_helper.set_tau(options.get_param(
                     'curvature', 'v2_parameter_tau'
-                ))
+                ))  
                 curvature_helper.set_zeta(options.get_param(
                     'curvature', 'v2_parameter_zeta'
                 ))
             elif curvature_version == 1:
-                curvature_helper = py_losc.CurvatureV1(dfa_info, df_pii[s],
-                                                       df_Vpq_inv, grid_lo[s],
+                curvature_helper = py_losc.CurvatureV1(dfa_info, 
+                                                       df_pii[s],
+                                                       df_Vpq_inv, 
+                                                       grid_lo[s],
                                                        grid_w)
                 curvature_helper.set_tau(options.get_param(
-                    'curevature', 'v1_parameter_tau'
+                    'curvature', 'v1_parameter_tau'
+                ))
+            else:
+                raise Exception(
+                    f'Unsupported curvature version: {curvature_version}.'
+                )
+            curvature_J[s] = curvature_helper.kappa_J()
+            curvature_X[s] = curvature_helper.kappa_LDAX()
+    else:
+        curvature = [None] * nspin
+        for s in range(nspin):
+            if curvature_version == 2:
+                curvature_helper = py_losc.CurvatureV2(dfa_info, 
+                                                       df_pii[s],
+                                                       df_Vpq_inv, 
+                                                       grid_lo[s],
+                                                       grid_w)
+                curvature_helper.set_tau(options.get_param(
+                    'curvature', 'v2_parameter_tau'
+                ))  
+                curvature_helper.set_zeta(options.get_param(
+                    'curvature', 'v2_parameter_zeta'
+                ))
+            elif curvature_version == 1:
+                curvature_helper = py_losc.CurvatureV1(dfa_info, 
+                                                       df_pii[s],
+                                                       df_Vpq_inv,
+                                                       grid_lo[s],
+                                                       grid_w)
+                curvature_helper.set_tau(options.get_param(
+                    'curvature', 'v1_parameter_tau'
                 ))
             else:
                 raise Exception(
@@ -372,36 +415,58 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
     for s in range(nspin):
         local_print(3, '')
         local_print(3, f'CO coefficient matrix.T: spin={s}')
-        if verbose >= 3:
-            utils.print_full_matrix(C_co[s].T, mf.mol)
+        utils.print_full_matrix(C_co[s].T, mf.mol)
     for s in range(nspin):
         local_print(3, '')
         local_print(3, f'LO coefficient matrix.T: spin={s}')
-        if verbose >= 3:
-            utils.print_full_matrix(C_lo[s].T, mf.mol)
+        utils.print_full_matrix(C_lo[s].T, mf.mol)
     for s in range(nspin):
         local_print(3, '')
         local_print(3, f'LO U matrix: spin={s}')
-        if verbose >= 3:
-            utils.print_full_matrix(U[s], mf.mol)
+        utils.print_full_matrix(U[s], mf.mol)
     for s in range(nspin):
         local_print(3, '')
-        local_print(3, f'Curvature: spin={s}')
-        if verbose >= 3:
+        if j_x_separation:
+            local_print(3, f'Curvature: J matrix: spin={s}')
+            utils.print_sym_matrix(curvature_J[s], mf.mol)
+            local_print(3, f'Curvature: X matrix: spin={s}')
+            utils.print_sym_matrix(curvature_X[s], mf.mol)
+        else:
+            local_print(3, f'Curvature: spin={s}')
             utils.print_sym_matrix(curvature[s], mf.mol)
     for s in range(nspin):
         local_print(3, '')
         local_print(3, f'Local Occupation matrix: spin={s}')
-        if verbose >= 3:
-            utils.print_sym_matrix(local_occ[s], mf.mol)
+        utils.print_sym_matrix(local_occ[s], mf.mol)
 
     #########################################################################
     # step 7: calculate LOSC corrections                                    #
     #########################################################################
-    if not fmol:
-        H_losc = [None] * nspin
-        E_losc = [None] * nspin
-        losc_eigs = [None] * nspin
+    H_losc = [None] * nspin
+    E_losc = [None] * nspin
+    losc_eigs = [None] * nspin
+    if orbital_energy_unit == 'au':
+        eig_factor = 1.0
+    else:
+        eig_factor = 27.21138602
+    
+    if j_x_separation:
+        for s in range(nspin):
+            # build losc effective Hamiltonian
+            H_losc[s] = py_losc.ao_hamiltonian_correction_LDA(
+                    S, C_lo[s], curvature_J[s], curvature_X[s], local_occ[s]
+                    )
+            # compute losc energy correction
+            E_losc[s] = py_losc.energy_correction_LDA(
+                    curvature_J[s], curvature_X[s], local_occ[s]
+                    )
+            # compute corrected orbital energies
+            losc_eigs[s] = np.array(py_losc.orbital_energy_post_scf(
+                    H_ao[s], H_losc[s], C_co[s]
+                    )) * eig_factor
+        E_losc_tot = 2 * E_losc[0] if nspin == 1 else sum(E_losc)
+        E_losc_dfa_tot = mf.e_tot + E_losc_tot
+    else:
         for s in range(nspin):
             # build losc effective Hamiltonian
             H_losc[s] = py_losc.ao_hamiltonian_correction(
@@ -415,10 +480,6 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
             )) * eig_factor
         E_losc_tot = 2 * E_losc[0] if nspin == 1 else sum(E_losc)
         E_losc_dfa_tot = mf.e_tot + E_losc_tot
-    else:
-        losc_eigs = None
-        E_losc_tot = None
-        E_losc_dfa_tot = None
 
 
     #########################################################################
@@ -443,7 +504,10 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
     losc_data['losc_type'] = 'post-SCF-LOSC'
     losc_data['orbital_energy_unit'] = orbital_energy_unit
     losc_data['nspin'] = nspin
-    if not fmol:
+    if j_x_separation:
+        losc_data['curvature_J'] = curvature_J
+        losc_data['curvature_X'] = curvature_X
+    else:
         losc_data['curvature'] = curvature
     losc_data['C_lo'] = C_lo
     losc_data['dfa_energy'] = mf.e_tot
@@ -451,27 +515,22 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
         losc_data['dfa_orbital_energy'] = [mf.mo_energy * eig_factor]
     else:
         losc_data['dfa_orbital_energy'] = mf.mo_energy * eig_factor
-    if not fmol:
-        losc_data['losc_energy'] = E_losc_tot
-        losc_data['losc_dfa_energy'] = E_losc_tot + mf.e_tot
-        losc_data['losc_dfa_orbital_energy'] = losc_eigs
-    if fmol:
-        orbitalet_e = np.asarray(orbitalet_e)
-        losc_data['losc_dfa_orbital_energy'] = orbitalet_e * eig_factor
+    losc_data['losc_energy']        = E_losc_tot
+    losc_data['losc_dfa_energy']    = E_losc_tot + mf.e_tot
+    losc_data['losc_dfa_orbital_energy'] = losc_eigs
+    losc_data['local_occ']          = local_occ # added by Ye Li
+    losc_data['S']                  = S # added by Ye Li
+    losc_data['U']                  = U # added by Ye Li
+    losc_data['select_CO_idx']      = select_CO_idx # added by Ye Li
+    losc_data['Orblosc']            = [losc_eigs[s] / eig_factor for s in range(nspin)] 
+    # in a.u., added by Ye Li
 
     # print energies to output
-    if fmol:
-        # print energies to output
-        local_print(1, '##################################')
-        local_print(1, '#  FMOL analysis Energy Summary  #')
-        local_print(1, '##################################')
-        utils.print_orbital_energies(1, mf, losc_data, window=window)
-    else:
-        local_print(1, '##################################')
-        local_print(1, '#  post-SCF-LOSC Energy Summary  #')
-        local_print(1, '##################################')
-        utils.print_total_energies(1, mf.mol, losc_data)
-        utils.print_orbital_energies(1, mf, losc_data, window=window)
+    local_print(1, '##################################')
+    local_print(1, '#  post-SCF-LOSC Energy Summary  #')
+    local_print(1, '##################################')
+    utils.print_total_energies(1, mf.mol, losc_data)
+    utils.print_orbital_energies(1, mf, losc_data, window=window)
 
 
     if return_losc_data:
@@ -480,7 +539,8 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
         return E_losc_dfa_tot, losc_eigs
 
 def scf_losc(dfa_info, mf, losc_data=None, occ=None,
-             orbital_energy_unit='eV', newton=False, verbose=5, window=None):
+             orbital_energy_unit='eV', newton=False, verbose=5, window=None,
+             return_losc_data=False, fitbasis='def2-qzvpp-ri'):
     """Perform the SCF-LOSC (frozen-LO) calculation based on a DFA 
     wavefunction
 
@@ -511,7 +571,7 @@ def scf_losc(dfa_info, mf, losc_data=None, occ=None,
         A PySCF wavefunction object that has LOSC contribution included.
     """
     #########################################################################
-    # step 1: sanity check & customize the occupation number if 'occ' in    #
+    # step 1: sanity-check (& cuszomize the occupation number if 'occ' in   #
     # mf.losc_data                                                          #
     #########################################################################
     _validate_inp(mf)
@@ -525,20 +585,27 @@ def scf_losc(dfa_info, mf, losc_data=None, occ=None,
     #########################################################################
     # step 2: do post-scf-losc to build curvature and LOs.                  #
     #########################################################################
+    original_C_co = 1 * np.asarray(mf.mo_coeff) 
+    # deep copy of the original canonical orbitals
+    # (Nbasis, Nocc+Nvir) array for RKS, (2, Nbasis, Nocc+Nvir) for UKS.
+
     _, _, losc_data = post_scf_losc(
         dfa_info, mf, orbital_energy_unit=orbital_energy_unit, 
-        verbose=verbose, occ=occ, return_losc_data=True, window=window
+        verbose=verbose, occ=occ, return_losc_data=True, window=window,
+        fitbasis=fitbasis
     )
 
     #########################################################################
     # step 3: perform SCF-LOSC.                                             #
     #########################################################################
     # see utils.generate_loscmf()
-    loscmf = utils.generate_loscmf(mf, losc_data=losc_data)
+    j_x_separation = options.get_param('curvature', 'j_x_separation')
+    loscmf = utils.generate_loscmf(mf, losc_data=losc_data, j_x_separation=j_x_separation)
     loscmf.init_guess = mf.chkfile
     loscmf.converged = False
     if newton == True:
         loscmf = loscmf.newton() 
+    print('begin SCF-LOSC calculation.')
     loscmf.kernel()
 
     #########################################################################
@@ -557,51 +624,126 @@ def scf_losc(dfa_info, mf, losc_data=None, occ=None,
     utils.print_total_energies(verbose, loscmf.mol, losc_data)
     utils.print_orbital_energies(verbose, loscmf, losc_data) 
 
-    return loscmf
+    #########################################################################
+    # step 5: update the U matrix & KS canonical orbital rotation           #
+    # added by Ye Li                                                        #
+    #########################################################################
 
-def macro_scf_losc(dfa_info, mf, losc_data=None, occ=None, 
-                   orbital_energy_unit='eV', verbose=5, window=None, 
-                   max_iter=100, e_conv=1e-8):
-    """Perform macro-SCF-LOSC calculation based on a DFA wavefunction.
+    # step 5.1: update the U matrix
+    ### The U matrix is the transformation matrix from the full canonical
+    ##### orbitals to the full localized orbitals. 
+    ##### U = C_lo.T @ S @ C_co
+    ### This matrix will be used in LOSC-TD-DFT to construct corrections
+    ##### to the Casida equation.
+    nspin       =   losc_data['nspin']
+    S           =   losc_data['S']      # overlap matrix, 
+                                        # (Nbasis, Nbasis) array.
+    new_C_co    =   np.asarray(loscmf.mo_coeff)   # new canonical orbitals, 
+                                                  # (Nbasis, Nocc+Nvir) array for RKS, 
+                                                  # (2, Nbasis, Nocc+Nvir) for UKS.
+    C_lo        =   losc_data['C_lo']   # localized orbitals, 
+                                        # [(Nbasis, N_selected) array] * nspin.
+    selected_CO =   losc_data['select_CO_idx']  # selected COs for localization,
+                                                # [(idx_start, idx_end)] * nspin.
+    full_U      =   [None] * nspin      # list to store the full U matrix.
+    if nspin == 1:
+        if selected_CO[0] == None:
+            full_U[0]    =   np.dot(np.dot(C_lo[0].T, S), new_C_co)
+        else:
+            Amat    =   1 * original_C_co   # deep copy of the original canonical orbitals,
+                                            # now RKS, (Nbasis, Nocc+Nvir) array.
+            idx_start, idx_end      =   selected_CO[0]
+            ### update Amat as the full localized orbitals,
+            ### Amat is a (Nbasis, N_LO) = (Nbasis, Nocc+Nvir) array.
+            Amat[:,idx_start:idx_end]    =   1 * C_lo[0]   
+            ### compute the new full U matrix,
+            ### U is a (N_LO, N_CO) = (Nocc+Nvir, Nocc+Nvir) array.
+            full_U[0]    =   np.dot(np.dot(Amat.T, S), new_C_co) 
 
-    see `scf_losc`
-    """
-    local_print = utils.init_local_print(verbose, mf.mol)
-    # sanity check and customize occ number
-    _validate_inp(mf)
-    if orbital_energy_unit not in ['eV', 'au']:
-        raise Exception(
-            'Invalid input for "orbital_energy_unit".'
-        )
-    if occ == None:
-        occ = {}
-
-    loscmf = scf_losc(dfa_info, mf, losc_data=losc_data, occ=occ, 
-                      orbital_energy_unit=orbital_energy_unit, verbose=verbose,
-                      window=window)
-    
-    e_tot0 = loscmf.e_tot
-    delta_e_tot = e_tot0
-    imacro = 0
-    conv = False
-    local_print(1, "#######################################################")
-    local_print(1, "#                                                     #")
-    local_print(1, "#                   macro-SCF-LOSC                    #")
-    local_print(1, "#                                                     #")
-    local_print(1, "#######################################################")
-    while (not conv and imacro < max_iter):
-        local_print(1, f'===MACRO ITER {imacro}===> ')
-        loscmf = scf_losc(dfa_info, mf, losc_data=losc_data, occ=occ, 
-                      orbital_energy_unit=orbital_energy_unit, verbose=verbose,
-                      window=window)
-        delta_e_tot = loscmf.e_tot - e_tot0
-        if delta_e_tot < e_conv:
-            conv = True
-        e_tot0 = loscmf.e_tot
-        imacro += 1
-
-    if conv:
-        local_print(1, f'===> macro-SCF-LOSC converged in {imacro} iterations')
     else:
-        local_print(1, f'===> Warning!!! macro-SCF-LOSC not converged!')
-    return loscmf
+        Amat_beta   =   1 * original_C_co[1]
+        if selected_CO[0] == None:
+            full_U[0]    =   np.dot(np.dot(C_lo[0].T, S), new_C_co[0])
+        else:
+            idx_start_alpha, idx_end_alpha    =   selected_CO[0]
+            ### update Amat_alpha as the full localized orbitals,
+            ### Amat_alpha is a (Nbasis, N_LO) = (Nbasis, Nocc+Nvir) array.
+            Amat_alpha  =   1 * original_C_co[0]
+            Amat_alpha[:,idx_start_alpha:idx_end_alpha]    =   1 * C_lo[0]
+            ### compute the new full U matrix,
+            ### U_alpha is a (N_LO, N_CO) = (Nocc+Nvir, Nocc+Nvir) array.
+            full_U[0]    =   np.dot(np.dot(Amat_alpha.T, S), new_C_co[0])
+        if selected_CO[1] == None:
+            full_U[1]    =   np.dot(np.dot(C_lo[1].T, S), new_C_co[1])
+        else:
+            idx_start_beta, idx_end_beta      =   selected_CO[1]
+            ### update Amat_beta as the full localized orbitals,
+            ### Amat_beta is a (Nbasis, N_LO) = (Nbasis, Nocc+Nvir) array.
+            Amat_beta[:,idx_start_beta:idx_end_beta]    =   1 * C_lo[1]
+            ### compute the new full U matrix,
+            ### U_beta is a (N_LO, N_CO) = (Nocc+Nvir, Nocc+Nvir) array.
+            full_U[1]    =   np.dot(np.dot(Amat_beta.T, S), new_C_co[1])
+
+    ### store the full U matrix in losc_data
+    losc_data['full_U']  =   full_U
+
+    # step 5.2: compute the canonical orbital rotation matrix V
+    ### The sort of energy level could change during the SCF-LOSC calculation,
+    ##### thus we need to find the correspondence between the old and new orbitals,
+    ##### and this would be useful for matching the excitations in QE-DFT or TD-DFT.
+    ### We will find the correspondence based on the orbital rotation from the
+    ##### original canonical orbitals to the losc-corrected canonical orbitals.
+    ##### V = new_C_co.T @ S @ original_C_co
+    ### The orbital rotation matrix will be stored in losc_data. And it can be processed
+    ##### in the following function orbital_correspondence().
+    V           =   [None] * nspin
+    if nspin == 1:
+        V[0]    =   np.dot(np.dot(new_C_co.T, S), original_C_co)
+    else:
+        V[0]    =   np.dot(np.dot(new_C_co[0].T, S), original_C_co[0])
+        V[1]    =   np.dot(np.dot(new_C_co[1].T, S), original_C_co[1])
+
+    ### store the orbital rotation matrix in losc_data
+    losc_data['CO_rotation']    =   V
+
+    if return_losc_data:
+        return loscmf, losc_data
+    else:
+        return loscmf 
+
+def orbital_correspondence(Vmat, if_print=False):
+    """Find the correspondence between the old and new orbitals based on the
+    orbital rotation matrix V.
+    """
+    ### The orbital rotation matrix V is a (N_CO_new, N_CO_old) unitary array
+    N_CO    =   Vmat.shape[0]
+    correspondence  =   {}
+    for i in range(N_CO):
+        ### find the corresponding orbital index of the new orbitals
+        idxes_new = np.argsort(np.abs(Vmat[:,i]))[::-1]
+        ### store the correspondence in a dictionary
+        correspondence[i+1]  =   []
+        for k in range(3):
+            idx_new = idxes_new[k]
+            correspondence[i+1].append((idx_new+1, Vmat[idx_new, i]))
+    if if_print:
+        print('The correspondence between the old and new orbitals:')
+        print('Old index -> new index, V value')
+        for key in correspondence:
+            print(f'Orbital {key}:')
+            for idx, val in correspondence[key]:
+                if abs(val) > 0.2:
+                    print(f'{key} -> {idx}, {val}')
+
+    inverse_correspondence  =   {}
+    for i in range(N_CO):
+        ### find the corresponding orbital index of the old orbitals
+        idxes_old = np.argsort(np.abs(Vmat[i,:]))[::-1]
+        ### store the correspondence in a dictionary
+        inverse_correspondence[i+1]  =   []
+        for k in range(3):
+            idx_old = idxes_old[k]
+            inverse_correspondence[i+1].append((idx_old+1, Vmat[i, idx_old]))
+    return correspondence, inverse_correspondence
+
+

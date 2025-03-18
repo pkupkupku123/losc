@@ -18,6 +18,8 @@ class Options():
       Below lists all the valid `key`-`value` options for the curvature module.
         - version : {2, 1}, default=2.
             The version of LOSC curvature.
+        - j_x_separation: bool, default=False
+            Treate J and Exchange separately in the curvature or not.
         - v1_parameter_tau: float, default=1.2378
             The parameter :math:`\\tau` in LOSC curvature version 1.
             Require `version=1` to use this setting.
@@ -58,6 +60,7 @@ class Options():
         self._options = {
             'curvature': {
                 'version': 2,
+                'j_x_separation': False,
                 'v1_parameter_tau': 1.2378,
                 'v2_parameter_tau': 1.2378,
                 'v2_parameter_zeta': 8.0,

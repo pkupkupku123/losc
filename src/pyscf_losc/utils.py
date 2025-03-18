@@ -96,8 +96,8 @@ def print_orbital_energies(verbose_level, mf, losc_data, print_level=1,
                 l, f"Warning: spin={s} number of basis NOT equal to number of AOs."
             )
         for i, orbE in enumerate(dfa_eigs[s]):
-            #if orbital_energy_unit != 'eV':
-            #    orb *= constants.hartree2ev
+            if orbital_energy_unit != 'eV':
+                orb *= constants.hartree2ev
             if not window or (window[0] <= orbE <= window[1]):
                 local_print(
                     l, "{:<5d}  {:<8.5f} {:>14.6f}  {:>14.10f}"
@@ -127,18 +127,7 @@ def print_sym_matrix(mat, mol, line_limit=5):
         pyscf.lib.logger.info(mol, f'    {i}:')
         pyscf.lib.logger.info(mol, f' {mat[i][:i+1]}')
 
-
-def calc_orbitalet_e(mo_energy, U):
-    sqrd_U = U **2
-    orbitalet_e = np.dot(sqrd_U, mo_energy)
-    return orbitalet_e
-
-
-def sort_orbitalets(orbitalet_e, lo_coeff):
-    idx = orbitalet_e.argsort()
-    orbitalet_e = orbitalet_e[idx]
-    lo_coeff = lo_coeff[:,idx]
-    return orbitalet_e, lo_coeff
+    pass
 
 
 def form_occ(mf, occ={}):
@@ -217,9 +206,9 @@ def form_occ(mf, occ={}):
                 raise Exception(
                     "Orbital index should be int, 'homo', or 'lumo'."
                 )
-            if not 0 <= orb_i < mf.mo_coeff.shape[1]:
+            if not 0 <= orb_i < nao:
                 raise Exception(
-                    "Customized occupation index is out-of-range."
+                    "Customized occpuation index is out-of-range."
                 )
             # check if homo and homo idx appear at the same time.
             if orb_i == nelec[s] - 1:
@@ -260,8 +249,8 @@ def form_occ(mf, occ={}):
 
     return nocc, occ_idx, occ_val
 
-
-def form_df_matrix(mf, C_lo, df_basis=None):
+# Modified by YeLi to support range-separated hybrid functionals (2024-9-18)
+def form_df_matrix(mf, C_lo, dfa_info, df_basis='def2-qzvpp-ri'):
     """Build density fitting related matrices, df_pii, df_Vpq_inv
 
     Parameters
@@ -270,6 +259,11 @@ def form_df_matrix(mf, C_lo, df_basis=None):
         Wavefunction object
     C_lo : [numpy.array, ...]
         LOSC LO coefficient matrix.
+    dfa_info : py_losc.DFAInfo
+        The information for the parent DFA.
+    df_basis : str, default='augccpvtzri'
+        The auxiliary basis set for density fitting.
+
 
     Returns
     -------
@@ -278,19 +272,53 @@ def form_df_matrix(mf, C_lo, df_basis=None):
     df_Vpq_inv :
         The inverse of <fitbasis|1/r|fitbasis> matrix.
     """
-    nspin = len(C_lo)
+    nspin       =    len(C_lo)
+    omega_x     =    dfa_info.omega_x()
+    hf_x        =    dfa_info.hf_x()
+    beta_x      =    dfa_info.beta_x()
     # step 1: build an auxiliary pyscf.gto.Mole object for DF.
-    auxmol = pyscf.df.addons.make_auxmol(mf.mol, df_basis)
-    # step 2: compute df_pii
-    # step 2.1: compute 3-center-2-electron ao integrals <fitbasis|lo, lo>.
-    df_pmn = pyscf.df.incore.aux_e1(mf.mol, auxmol, intor='int3c2e', 
-                                    aosym='s1', comp=None, out=None)
-    #########################################################################
-    # In PySCF, this matrix is stored in an anti-intuitive way. The first   #
-    # index is AO, the second index is fitbasis, and the third index is AO. #
-    # No idea why the matrix is strored like this.                          #
-    #########################################################################
-    # step 2.2: transform from AO to LO. 
+    mol         =    mf.mol
+    auxmol      =    pyscf.df.addons.make_auxmol(mol, df_basis)
+
+    # step 2: compute df_pmn and df_Vpq
+    # step 2.1: compute 3-center-2-electron ao integrals <fitbasis|1/r|ao, ao>.
+    df_pmn      =    pyscf.df.incore.aux_e1(mol, auxmol, intor='int3c2e', 
+                                            aosym='s1', comp=None, out=None)
+    
+    # step 2.2: compute 2-center-2-electron ao integrals <fitbasis|1/r|fitbasis>.
+    df_Vpq      =    pyscf.df.incore.fill_2c2e(mol, auxmol, intor='int2c2e', 
+                                               comp=None, hermi=1, out=None)
+    
+    # step 2.3: Taking into account the globally-hybrid Hartree-Fock exchange.
+    df_pmn      =    (1 - hf_x) * df_pmn    # df_pmn = <fitbasis|(1-alpha)/r|ao, ao>
+    df_Vpq      =    (1 - hf_x) * df_Vpq    # df_Vpq = <fitbasis|(1-alpha)/r|fitbasis>
+    
+    # step 2.4: If the parent DFA is range-separated, then:
+    if abs(omega_x) > 1e-8 and abs(beta_x) > 1e-8:
+        # (2.4.1) compute df_pmn_omega and df_Vpq_omega.
+        # df_pmn_omega = <fitbasis|erf(w r)/r|ao, ao>
+        # df_Vpq_omega = <fitbasis|erf(w r)/r|fitbasis>
+        with mol.with_range_coulomb(omega_x):
+            with auxmol.with_range_coulomb(omega_x):
+                df_pmn_omega = pyscf.df.incore.aux_e1(mol, auxmol, intor='int3c2e', 
+                                                        aosym='s1', comp=None, out=None)
+                df_Vpq_omega = pyscf.df.incore.fill_2c2e(mol, auxmol, intor='int2c2e', 
+                                                        comp=None, hermi=1, out=None)
+        # (2.4.2) update df_pmn = <fitbasis|(1-alpha)/r  -  beta*erf(w r)/r|ao, ao>
+        df_pmn = df_pmn - beta_x * df_pmn_omega
+        # (2.4.3) update df_Vpq = <fitbasis|(1-alpha)/r  -  beta*erf(w r)/r|fitbasis>
+        df_Vpq = df_Vpq - beta_x * df_Vpq_omega
+        # (2.4.4) clear df_pmn_omega and df_Vpq_omega
+        del df_pmn_omega, df_Vpq_omega
+
+
+    # step 3: compute df_pii and df_Vpq_inv
+    ###############################################################################
+    # In PySCF, the df_pmn matrix is stored in an anti-intuitive way. The first   #
+    # index is AO, the second index is fitbasis, and the third index is AO.       #
+    # No idea why the matrix is strored like this.                                #
+    ###############################################################################
+    # step 3.1: compute df_pii, transforming from AO to LO. 
     df_pii = [
         np.zeros((auxmol.nao_nr(), C_lo[s].shape[1])) for s in range(nspin)
     ]
@@ -298,16 +326,13 @@ def form_df_matrix(mf, C_lo, df_basis=None):
         df_pii[s] = np.einsum(
             'mi,mpn,ni->pi', C_lo[s], df_pmn, C_lo[s], optimize=True
         )
-
-    # step 3: compute df_Vpq_inv.
-    df_Vpq = pyscf.df.incore.fill_2c2e(mf.mol, auxmol, intor='int2c2e', 
-                                       comp=None, hermi=1, out=None)
+    # step 3.2: compute df_Vpq_inv.
     df_Vpq_inv = np.linalg.inv(df_Vpq)
 
     return df_pii, df_Vpq_inv
 
 
-def generate_loscmf(mf, losc_data=None):
+def generate_loscmf(mf, losc_data=None, j_x_separation=False):
     """This function is used to generate an instance of SCF class in 
     PySCF for SCF-LOSC calculation.
 
@@ -324,7 +349,8 @@ def generate_loscmf(mf, losc_data=None):
     losc_data : dict
         A dictionary that holds useful matrices and information from 
         post-SCF-LOSC calculation.
-
+    j_x_separation : bool, default=False
+        Whether to treat J and X separately in the curvature or not.
     Returns
     -------
     loscmf : pyscf.dft.rks.RKS or pyscf.dft.uks.UKS
@@ -345,13 +371,17 @@ def generate_loscmf(mf, losc_data=None):
     if losc_data == None:
         return loscmf
     else:
-        curvature = losc_data.get('curvature', [])
+        if j_x_separation:
+            curvature_J = losc_data.get('curvature_J', [])
+            curvature_X = losc_data.get('curvature_X', [])
+        else:
+            curvature = losc_data.get('curvature', [])
         C_lo = losc_data.get('C_lo', [])
         E_losc = [0]
 
-        def get_fock(h1e=None, s1e=None, vhf=None, dm=None, cycle=-1,
+        def get_fock(self, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1,
                      diis=None, diis_start_cycle=None, 
-                     level_shift_factor=None, damp_factor=None):
+                     level_shift_factor=None, damp_factor=None, fock_last=None):
             ''' overwrite Fock matrix
             '''
             # ovlp matrix
@@ -381,19 +411,32 @@ def generate_loscmf(mf, losc_data=None):
                 # local occupation matrix
                 local_occ = py_losc.local_occupation(C_lo[s], S, D[s])
                 # LOSC effective Fock matrix
-                H_losc = py_losc.ao_hamiltonian_correction(
-                    S, C_lo[s], curvature[s], local_occ
-                )
+                if j_x_separation:
+                    H_losc = py_losc.ao_hamiltonian_correction_LDA(
+                        S, C_lo[s], curvature_J[s], curvature_X[s], local_occ
+                    )
+                else:
+                    H_losc = py_losc.ao_hamiltonian_correction(
+                        S, C_lo[s], curvature[s], local_occ
+                    )
                 F[s][:] += H_losc
                 # LOSC energy correction
-                E_losc[0] += py_losc.energy_correction(
-                    curvature[s], local_occ
-                )
+                if j_x_separation:
+                    E_losc[0] += py_losc.energy_correction_LDA(
+                        curvature_J[s], curvature_X[s], local_occ
+                    )
+                else:
+                    E_losc[0] += py_losc.energy_correction(
+                        curvature[s], local_occ
+                    )
             if nspin == 1:
                 E_losc[0] *= 2
-            return F
+            if nspin == 1:
+                return F[0]
+            else:
+                return F
 
-        def energy_tot(dm=None, h1e=None, vhf=None):
+        def energy_tot(self, dm=None, h1e=None, vhf=None):
             E_dfa = original_energy_tot()
             E_tot = E_dfa + E_losc[0]
             return E_tot
