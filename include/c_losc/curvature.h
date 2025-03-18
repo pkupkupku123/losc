@@ -31,6 +31,8 @@ typedef struct LoscDFAInfo LoscDFAInfo;
  * @param [in] gga_x: The total weights of all GGA and LDA type exchanges.
  * @param [in] hf_x: The total weights of HF exchanges.
  * @param [in] name: The name of the DFA. Default to an empty string.
+ * @param [in] beta_x: The parameter beta in range-separation. Default to 0.
+ * @param [in] omega_x: The parameter omega in range-separation. Default to 0.
  * @par Example
  * Taking B3LYP functional as an example. The B3LYP functional is
  * \f[
@@ -53,7 +55,7 @@ typedef struct LoscDFAInfo LoscDFAInfo;
  * b3lyp = losc_dfa_info_create(0.80, 0.20, "B3LYP")
  * @endcode
  */
-LoscDFAInfo *losc_dfa_info_create(double gga_x, double hf_x, const char *name);
+LoscDFAInfo *losc_dfa_info_create(double gga_x, double hf_x, const char *name, double beta_x, double omega_x);
 
 /**
  * @brief Free a LoscDFAInfo struct.
@@ -202,7 +204,7 @@ typedef struct LoscCurvatureV1 {
  * @param [in] df_pii Three-body integral \f$ \langle p |ii \rangle \f$
  * used in density fitting. Index `p` is for fitbasis and index `i`
  * is for LOs. The dimension of `df_pii` is `[nfitbasis, nlo]`.
- * @param [in] df_Vpq_inv Inverse of \f$ \langle p | 1/\mathbf{r}
+ * @param [in] df_Vpq_inv Inverse of \f$ \langle p | kernel
  * | q \rangle \f$ matrix used in density fitting. Index `p` and `q`
  * are for LOs. The dimension of `df_Vpq_inv` is `[nfitbasis, nfitbasis]`.
  * @param [in] grid_lo LOs' value on grid points with dimension of
