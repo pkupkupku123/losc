@@ -1,6 +1,39 @@
-============================================
+Fork Updates
+------------
+
+This is a fork of the repository `Yang Laboratory/losc <https://github.com/Yang-Laboratory/losc>`_, maintained by the `Chen Li Research Group <https://www.chem.pku.edu.cn/chenli/>`_ at Peking University.
+
+Updates in This Fork
+=====================
+
+2025-03-18:
+===========
+
+- Implemented LOSC for linear-response TDDFT calculations.
+- Added LOSC1 and LOSC2 curvatures for range-separated functionals (further improvement is required for enhanced accuracy).
+- Resolved several issues, including:
+  
+  - Incompatibility of SCF-LOSC with PySCF version 2.5.0 or higher.
+  - The :math:`\tau` parameter modification for Curvature2 not being effective.
+
+Notes:
+=======
+
+- Currently, all the above changes apply only to the PySCF module; corresponding updates for the Psi4 module are still pending.
+- This fork does not include the FMOL analysis released on July 4, 2024, in the original repository.
+- Please refer to the ``example_tddft`` folder for examples of using LOSC in LR-TDDFT calculations.
+
+References for Updates in This Fork:
+====================================
+
+- Li, Y.; Li, C. Submitted to *J. Chem. Theory Comput.*.
+
+
+
+For installation and usage of ground-state LOSC, refer to the original README below.
+
 Localized Orbital Scaling Correction (LOSC)
-============================================
+-------------------------------------------
 
 LOSC is a newly developed method in `Weitao Yang's Research group
 <https://yanglab.chem.duke.edu>`_ to solve the delocalization error
@@ -27,6 +60,7 @@ Manual and Documentation
 
 The manual and documentation are available at https://yang-laboratory.github.io/losc/.
 Refer to the website for the instructions of installation and usage.
+
 
 References of LOSC
 ==================
