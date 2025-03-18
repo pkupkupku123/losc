@@ -1,7 +1,7 @@
 Fork Updates
 ------------
 
-This is a fork of the repository `Yang Laboratory/losc <https://github.com/Yang-Laboratory/losc>`_, maintained by the `Chen Li Research Group <https://www.chem.pku.edu.cn/chenli/>`_ at Peking University.
+This is a fork of the repository `Yang Laboratory/losc <https://github.com/Yang-Laboratory/losc>`_, maintained by Ye Li, a graduate student in `Chen Li's Research Group <https://www.chem.pku.edu.cn/chenli/>`_ at Peking University.
 
 Updates in This Fork:
 =====================
