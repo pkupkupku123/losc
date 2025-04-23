@@ -6,6 +6,11 @@ This is a fork of the repository `Yang Laboratory/losc <https://github.com/Yang-
 Updates in This Fork:
 =====================
 
+2025-04-23:
+===========
+
+- Now one can directly apply solvent model to LOSC (TD)SCF objects in PySCF.
+
 2025-03-18:
 ===========
 
