@@ -201,9 +201,11 @@ def post_scf_losc(dfa_info, mf, orbital_energy_unit='eV', verbose=1, occ=None,
 
     # step 3.2: Fock matrix
     if nspin == 1:
-        H_ao = [np.asarray(mf.get_fock()), np.asarray(mf.get_fock())]
+        H_ao = [np.asarray(mf.get_fock(dm=mf.make_rdm1())), 
+                np.asarray(mf.get_fock(dm=mf.make_rdm1()))]
     else:
-        H_ao = [np.asarray(mf.get_fock()[0]), np.asarray(mf.get_fock()[1])]
+        H_ao = [np.asarray(mf.get_fock(dm=mf.make_rdm1())[0]), 
+                np.asarray(mf.get_fock(dm=mf.make_rdm1())[1])]
 
     # step 3.3: vector ao dipole integrals
     mf.mol.set_common_origin([0, 0, 0])

@@ -399,12 +399,12 @@ def generate_loscmf(mf, losc_data=None, j_x_separation=False):
             # Fock matrix
             if nspin == 1:
                 F = [
-                    np.asarray(original_get_fock()), 
-                    np.asarray(original_get_fock())]
+                    np.asarray(original_get_fock(dm=loscmf.make_rdm1())), 
+                    np.asarray(original_get_fock(dm=loscmf.make_rdm1()))]
             else:
                 F = [
-                    np.asarray(original_get_fock()[0]),
-                    np.asarray(original_get_fock()[1])
+                    np.asarray(original_get_fock(dm=loscmf.make_rdm1())[0]),
+                    np.asarray(original_get_fock(dm=loscmf.make_rdm1())[1])
                 ]
             E_losc[0] = 0
             for s in range(nspin):
