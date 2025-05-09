@@ -1735,4 +1735,11 @@ class TDHF_scfLOSC(uhf.TDHF):
     
     analyze = scflosc_analyze
 
+# region Names
+
+TDDFT_U = TDHF_U = TDHF_scfLOSC
+TDDFT_R = TDHF_R = TDHF_scfLOSC_R
+TDA_U = TDA_scfLOSC
+TDA_R = TDA_scfLOSC_R
+
 del (OUTPUT_THRESHOLD)
