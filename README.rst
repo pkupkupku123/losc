@@ -5,6 +5,10 @@ This is a fork of the repository `Yang Laboratory/losc <https://github.com/Yang-
 
 Updates in This Fork:
 =====================
+2025-05-10:
+===========
+
+- Now one can solve losc-tddft/tda equations by direct diagonalization.
 
 2025-04-23:
 ===========
