@@ -36,6 +36,9 @@ CAM_B3LYP = py_losc.DFAInfo(0.81, 0.19, 'CAM-B3LYP', 0.460, 0.33)
 WB97 = py_losc.DFAInfo(1.0, 0.0, 'WB97', 1.0, 0.4)
 WB97_TUNED = py_losc.DFAInfo(0.785, 0.0, 'WB97', 1.0, 0.4)
 
+#: `py_losc.DFAInfo` object for WB97X-D functional.
+WB97X_D = py_losc.DFAInfo(0.778, 0.222, 'WB97X', 0.778, 0.2)
+
 #: `py_losc.DFAInfo` object for WB97X functional.
 WB97X = py_losc.DFAInfo(0.842, 0.158, 'WB97X', 0.842, 0.3)
 WB97X_TUNED = py_losc.DFAInfo(0.743, 0.158, 'WB97X', 0.842, 0.3)
